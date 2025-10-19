@@ -4,18 +4,16 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-# --- UPDATED IMPORTS ---
-from langchain_core.prompts import PromptTemplate
+from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
-# --- END UPDATED IMPORTS ---
 
 # --- Imports for Voice I/O ---
 from gtts import gTTS
 from io import BytesIO
 from streamlit_mic_recorder import mic_recorder
 import whisper
+
 # --- 1. SETUP: LOAD API KEYS & INITIAL CONFIG ---
 load_dotenv()
 google_api_key = os.getenv("GOOGLE_API_KEY")
@@ -161,13 +159,17 @@ def main():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Handle User Input (Text and Voice)
-    col1, col2 = st.columns([6, 1])
-    with col1:
-        user_question = st.chat_input("Ask your question here...", key="chat_input")
-    with col2:
-        st.write("Record:")
-        voice_recording = mic_recorder(start_prompt="🎤", stop_prompt="⏹️", key='recorder', format="wav")
+    # Handle User Input (Text and Voice) - UPDATED FOR MOBILE
+    user_question = st.chat_input("Ask your question here...", key="chat_input")
+    
+    # Voice recording - better mobile layout
+    st.write("**Or record your question:**")
+    voice_recording = mic_recorder(
+        start_prompt="🎤 Start Recording", 
+        stop_prompt="⏹️ Stop", 
+        key='recorder', 
+        format="wav"
+    )
 
     # Process voice input if available
     if voice_recording:
