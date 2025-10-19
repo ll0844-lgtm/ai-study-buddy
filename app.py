@@ -5,23 +5,17 @@ import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Use langchain_community imports which are more stable
-try:
-    from langchain import PromptTemplate
-    from langchain import LLMChain
-    from langchain.memory import ConversationBufferMemory
-except ImportError:
-    # Fallback imports
-    from langchain.prompts import PromptTemplate
-    from langchain.chains import LLMChain
-    from langchain.memory import ConversationBufferMemory
+# --- UPDATED IMPORTS ---
+from langchain_core.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain.memory import ConversationBufferMemory
+# --- END UPDATED IMPORTS ---
 
 # --- Imports for Voice I/O ---
 from gtts import gTTS
 from io import BytesIO
 from streamlit_mic_recorder import mic_recorder
 import whisper
-
 # --- 1. SETUP: LOAD API KEYS & INITIAL CONFIG ---
 load_dotenv()
 google_api_key = os.getenv("GOOGLE_API_KEY")
@@ -30,13 +24,17 @@ if not google_api_key:
     st.error("API key not found. Please ensure GOOGLE_API_KEY is in your .env file.")
     st.stop()
 
+
 # Load Whisper model once
 @st.cache_resource
 def load_whisper_model():
     """Loads the Whisper model and caches it."""
+    # Using the "base" model is a good balance of speed and accuracy.
     return whisper.load_model("base")
 
+
 whisper_model = load_whisper_model()
+
 
 # --- FUNCTION TO ADD CUSTOM CSS ---
 def inject_custom_css():
@@ -47,25 +45,18 @@ def inject_custom_css():
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Roboto+Slab:wght@700&display=swap');
             html, body, [class*="st-"], [class*="css-"] { font-family: 'Poppins', sans-serif; }
             h1, h2, h3 { font-family: 'Roboto Slab', serif; }
-            
-            /* Custom styling for better appearance */
-            .main { padding: 2rem; }
-            .stChatMessage { padding: 1rem; border-radius: 10px; margin: 0.5rem 0; }
-            .stChatMessage.user { background-color: #f0f2f6; }
-            .stChatMessage.assistant { background-color: #e6f7ff; }
         </style>
     """, unsafe_allow_html=True)
+
 
 # --- 2. HANDLER & HELPER FUNCTIONS ---
 
 def handle_general_query(user_question, template, memory):
     """Handles chat queries using a dynamic template and conversation memory."""
     try:
-        model_general = ChatGoogleGenerativeAI(
-            model="gemini-pro",  # Using gemini-pro which is more reliable
-            google_api_key=google_api_key, 
-            temperature=0.7
-        )
+        # --- UPDATE THIS LINE ---
+        model_general = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=google_api_key, temperature=0.7)
+        # ----------------------
 
         prompt = PromptTemplate(
             template=template + "\n\nConversation History:\n{history}\n\nHuman: {question}\nAI:",
@@ -90,6 +81,7 @@ def text_to_speech(text):
         st.error(f"Error in text-to-speech: {e}")
         return None
 
+
 def transcribe_audio(audio_bytes):
     """Transcribes audio bytes to text using Whisper."""
     try:
@@ -103,20 +95,16 @@ def transcribe_audio(audio_bytes):
         return result['text']
     except Exception as e:
         st.error(f"Error during transcription: {e}")
-        return ""  # Return empty string on failure
+        return "" # Return empty string on failure
+
 
 # --- 3. MAIN STREAMLIT APP UI ---
 
 def main():
-    st.set_page_config(
-        page_title="AI StudyBuddy", 
-        layout="wide",
-        page_icon="🤖"
-    )
+    st.set_page_config(page_title="AI StudyBuddy", layout="wide")
     inject_custom_css()
 
-    st.markdown("<h1 style='text-align: center;'>🤖 Your AI StudyBuddy</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #666;'>Your personal AI tutor with voice capabilities</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>Your AI StudyBuddy</h1>", unsafe_allow_html=True)
     st.write("---")
 
     # --- SESSION STATE INITIALIZATION ---
@@ -125,13 +113,14 @@ def main():
     if 'memory' not in st.session_state:
         st.session_state.memory = ConversationBufferMemory(memory_key="history")
     if 'custom_persona_text' not in st.session_state:
-        st.session_state.custom_persona_text = ""  # Stores the user's custom persona
+        st.session_state.custom_persona_text = "" # Stores the user's custom persona
     if 'active_persona_text' not in st.session_state:
-        st.session_state.active_persona_text = ""  # The persona currently in use by the LLM
+        st.session_state.active_persona_text = "" # The persona currently in use by the LLM
+
 
     # --- SIDEBAR ---
     with st.sidebar:
-        st.title("🎭 AI Persona & Controls")
+        st.title("🤖 AI Persona & Controls")
         st.write("Choose a persona or create your own.")
 
         personas = {
@@ -146,12 +135,12 @@ def main():
         selected_persona_name = st.selectbox("Choose a persona:", options=list(personas.keys()))
 
         if selected_persona_name == "✍️ Custom...":
+            # Use the stored custom persona text as the value for the text area
             st.session_state.custom_persona_text = st.text_area(
                 "Enter custom persona:",
                 value=st.session_state.custom_persona_text,
                 height=200,
-                key="custom_persona_input",
-                placeholder="Example: You are a history professor specializing in ancient civilizations. Explain historical events with detailed context and interesting facts."
+                key="custom_persona_input"
             )
             st.session_state.active_persona_text = st.session_state.custom_persona_text
         else:
@@ -160,24 +149,11 @@ def main():
         st.info(f"**Current Persona:** {selected_persona_name}")
 
         st.write("---")
-        st.subheader("Chat Controls")
-        
-        if st.button("🗑️ Clear Chat History", use_container_width=True):
+        if st.button("Clear Chat History"):
             st.session_state.messages = []
             st.session_state.memory.clear()
             st.success("Chat history cleared!")
             st.rerun()
-
-        st.write("---")
-        st.subheader("About")
-        st.markdown("""
-        This AI StudyBuddy features:
-        - 🤖 Multiple AI personas
-        - 🎤 Voice input (record)
-        - 🔊 Text-to-speech output
-        - 💬 Conversation memory
-        - 🎨 Custom styling
-        """)
 
     # --- MAIN CHAT INTERFACE ---
     # Display chat history
@@ -190,54 +166,39 @@ def main():
     with col1:
         user_question = st.chat_input("Ask your question here...", key="chat_input")
     with col2:
-        st.write("**Record:**")
-        voice_recording = mic_recorder(
-            start_prompt="🎤 Start", 
-            stop_prompt="⏹️ Stop", 
-            key='recorder', 
-            format="wav"
-        )
+        st.write("Record:")
+        voice_recording = mic_recorder(start_prompt="🎤", stop_prompt="⏹️", key='recorder', format="wav")
 
     # Process voice input if available
-    if voice_recording and voice_recording.get('bytes'):
-        with st.spinner("🎤 Transcribing audio..."):
-            transcribed_text = transcribe_audio(voice_recording['bytes'])
-            if transcribed_text and transcribed_text.strip():
-                st.session_state.user_question_transcribed = transcribed_text
-                st.success(f"Transcribed: {transcribed_text}")
-                st.rerun()
+    if voice_recording:
+        transcribed_text = transcribe_audio(voice_recording['bytes'])
+        if transcribed_text:
+            # Set the transcribed text to be processed in the next run
+            st.session_state.user_question_transcribed = transcribed_text
+            st.rerun()
 
     # If there's transcribed text from the last run, use it as the user_question
     if 'user_question_transcribed' in st.session_state and st.session_state.user_question_transcribed:
         user_question = st.session_state.user_question_transcribed
+        # Clear it so it's not reused on the next rerun
         del st.session_state.user_question_transcribed
 
     # Process the final user question (from text or voice)
     if user_question:
         st.session_state.messages.append({"role": "user", "content": user_question})
-        
         with st.chat_message("user"):
             st.markdown(user_question)
 
         with st.chat_message("assistant"):
-            with st.spinner("🤔 Thinking..."):
-                response = handle_general_query(
-                    user_question, 
-                    st.session_state.active_persona_text, 
-                    st.session_state.memory
-                )
-                
+            with st.spinner("Thinking..."):
+                response = handle_general_query(user_question, st.session_state.active_persona_text, st.session_state.memory)
                 if response:
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    with st.spinner("🔊 Generating audio..."):
-                        audio_response = text_to_speech(response)
-                        if audio_response:
-                            st.audio(audio_response, format='audio/mp3')
-                            st.success("Audio ready! Click play to listen.")
-                else:
-                    st.error("Sorry, I couldn't generate a response. Please try again.")
+                    audio_response = text_to_speech(response)
+                    if audio_response:
+                        st.audio(audio_response, format='audio/mp3')
+
 
 if __name__ == "__main__":
     main()
