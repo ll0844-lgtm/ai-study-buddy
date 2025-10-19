@@ -4,9 +4,17 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
+
+# Use langchain_community imports which are more stable
+try:
+    from langchain import PromptTemplate
+    from langchain import LLMChain
+    from langchain.memory import ConversationBufferMemory
+except ImportError:
+    # Fallback imports
+    from langchain.prompts import PromptTemplate
+    from langchain.chains import LLMChain
+    from langchain.memory import ConversationBufferMemory
 
 # --- Imports for Voice I/O ---
 from gtts import gTTS
@@ -26,7 +34,6 @@ if not google_api_key:
 @st.cache_resource
 def load_whisper_model():
     """Loads the Whisper model and caches it."""
-    # Using the "base" model is a good balance of speed and accuracy.
     return whisper.load_model("base")
 
 whisper_model = load_whisper_model()
@@ -55,7 +62,7 @@ def handle_general_query(user_question, template, memory):
     """Handles chat queries using a dynamic template and conversation memory."""
     try:
         model_general = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",  # Using gemini-1.5-flash which is more widely available
+            model="gemini-pro",  # Using gemini-pro which is more reliable
             google_api_key=google_api_key, 
             temperature=0.7
         )
@@ -139,7 +146,6 @@ def main():
         selected_persona_name = st.selectbox("Choose a persona:", options=list(personas.keys()))
 
         if selected_persona_name == "✍️ Custom...":
-            # Use the stored custom persona text as the value for the text area
             st.session_state.custom_persona_text = st.text_area(
                 "Enter custom persona:",
                 value=st.session_state.custom_persona_text,
@@ -160,12 +166,6 @@ def main():
             st.session_state.messages = []
             st.session_state.memory.clear()
             st.success("Chat history cleared!")
-            st.rerun()
-
-        if st.button("🔄 Reset Persona", use_container_width=True):
-            st.session_state.custom_persona_text = ""
-            st.session_state.active_persona_text = ""
-            st.success("Persona reset!")
             st.rerun()
 
         st.write("---")
@@ -203,7 +203,6 @@ def main():
         with st.spinner("🎤 Transcribing audio..."):
             transcribed_text = transcribe_audio(voice_recording['bytes'])
             if transcribed_text and transcribed_text.strip():
-                # Set the transcribed text to be processed in the next run
                 st.session_state.user_question_transcribed = transcribed_text
                 st.success(f"Transcribed: {transcribed_text}")
                 st.rerun()
@@ -211,12 +210,10 @@ def main():
     # If there's transcribed text from the last run, use it as the user_question
     if 'user_question_transcribed' in st.session_state and st.session_state.user_question_transcribed:
         user_question = st.session_state.user_question_transcribed
-        # Clear it so it's not reused on the next rerun
         del st.session_state.user_question_transcribed
 
     # Process the final user question (from text or voice)
     if user_question:
-        # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": user_question})
         
         with st.chat_message("user"):
@@ -234,7 +231,6 @@ def main():
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # Add text-to-speech functionality
                     with st.spinner("🔊 Generating audio..."):
                         audio_response = text_to_speech(response)
                         if audio_response:
