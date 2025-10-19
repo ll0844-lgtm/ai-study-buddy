@@ -4,10 +4,9 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
-
 # --- Imports for Voice I/O ---
 from gtts import gTTS
 from io import BytesIO
@@ -199,4 +198,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
